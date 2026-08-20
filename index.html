@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Su GitHub Pages la pagina è pubblica per chiunque abbia l'indirizzo: questo
+     non la protegge, ma evita che finisca nei risultati di ricerca. -->
+<meta name="robots" content="noindex, nofollow">
+<title>Listing Radar — report</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --plane:          #f9f9f7;
+    --surface-1:      #fcfcfb;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6;
+    --neg:            #e34948;
+    --good:           #0ca30c;
+    --critical:       #d03b3b;
+    --warning:        #fab219;
+    --success-text:   #006300;
+    --hover:          rgba(11,11,11,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --plane:          #0d0d0d;
+      --surface-1:      #1a1a19;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --neg:            #e66767;
+      --success-text:   #0ca30c;
+      --hover:          rgba(255,255,255,0.06);
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --plane:          #0d0d0d;
+    --surface-1:      #1a1a19;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --neg:            #e66767;
+    --success-text:   #0ca30c;
+    --hover:          rgba(255,255,255,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--plane); color: var(--text-primary);
+         font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--text-secondary); font-size: 13px; }
+  .spacer { flex: 1; }
+  button.ghost { background: none; border: 1px solid var(--border); color: var(--text-secondary);
+                 border-radius: 7px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  button.ghost:hover { background: var(--hover); }
+
+  .note { background: var(--surface-1); border: 1px solid var(--border); border-left: 3px solid var(--warning);
+          border-radius: 8px; padding: 12px 15px; margin: 18px 0 22px; color: var(--text-secondary); font-size: 13px; }
+  .note b { color: var(--text-primary); }
+
+  /* una sola riga di filtri, sopra tutto ciò che governa */
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+             background: var(--surface-1); border: 1px solid var(--border);
+             border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; }
+  .filters label { font-size: 12px; color: var(--text-muted); display: flex; flex-direction: column; gap: 4px; }
+  .filters input, .filters select {
+    font: inherit; font-size: 13px; padding: 6px 9px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--plane); color: var(--text-primary); min-width: 150px; }
+  .filters .count { margin-left: auto; font-size: 13px; color: var(--text-secondary); align-self: flex-end; padding-bottom: 6px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 22px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .lab { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+  .tile .val { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .tile .val.hero { font-size: 48px; line-height: 1.05; }
+  .tile .hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+          padding: 16px 18px 18px; margin-bottom: 20px; }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 3px; }
+  .card .cap { font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 22px 0; text-align: center; }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 600; font-size: 12px; color: var(--text-muted);
+       padding: 7px 9px; border-bottom: 1px solid var(--grid); white-space: nowrap; cursor: pointer; user-select: none; }
+  th:hover { color: var(--text-primary); }
+  td { padding: 7px 9px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  tbody tr:hover { background: var(--hover); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .why { color: var(--text-secondary); font-size: 12px; max-width: 380px; }
+
+  .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 7px;
+          border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
+  .pill.ok   { color: var(--success-text); border-color: var(--good); }
+  .pill.no   { color: var(--critical);     border-color: var(--critical); }
+  .pill.na   { color: var(--text-muted); }
+
+  svg text { font: 11px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--text-muted); }
+  svg .val-label { fill: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  svg .axis-line { stroke: var(--baseline); stroke-width: 1; }
+  svg .grid-line { stroke: var(--grid); stroke-width: 1; }
+  .bar { cursor: default; }
+  .bar:hover { opacity: 0.82; }
+
+  #tip { position: fixed; pointer-events: none; opacity: 0; transition: opacity .1s;
+         background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+         padding: 8px 11px; font-size: 12px; color: var(--text-primary);
+         box-shadow: 0 4px 16px rgba(0,0,0,.14); z-index: 50; max-width: 300px; }
+  #tip b { display: block; margin-bottom: 3px; }
+  #tip .t-sec { color: var(--text-secondary); }
+
+  details.tablecard { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 0 18px; margin-bottom: 20px; }
+  details.tablecard > summary { cursor: pointer; padding: 14px 0; font-size: 14px; font-weight: 600; }
+  details.tablecard[open] > summary { border-bottom: 1px solid var(--grid); margin-bottom: 6px; }
+  .scroll { overflow-x: auto; padding-bottom: 14px; }
+  footer { color: var(--text-muted); font-size: 12px; margin-top: 26px; line-height: 1.7; }
+</style>
+</head>
+<body class="viz-root">
+<div class="wrap">
+  <header>
+    <h1>Listing Radar</h1>
+    <span class="sub" id="meta-line"></span>
+    <span class="spacer"></span>
+    <button class="ghost" id="theme">Tema</button>
+  </header>
+
+  <div class="note" id="disclaimer"></div>
+
+  <div class="filters">
+    <label>Cerca<input id="f-q" type="search" placeholder="simbolo o nome" autocomplete="off"></label>
+    <label>Categoria<select id="f-cat"></select></label>
+    <label>Exchange<select id="f-ex"></select></label>
+    <label>Esito dei cancelli<select id="f-pass">
+      <option value="">tutti</option>
+      <option value="1">passa</option>
+      <option value="0">scartato</option>
+      <option value="n">non valutato</option>
+    </select></label>
+    <label>Periodo<select id="f-time">
+      <option value="">tutto lo storico</option>
+      <option value="7">ultimi 7 giorni</option>
+      <option value="30">ultimi 30 giorni</option>
+      <option value="f">solo in arrivo</option>
+    </select></label>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>Perché scarto i listing</h2>
+    <div class="cap">Primo motivo di esclusione, sui listing selezionati dai filtri. Una sola serie: il colore non codifica nulla.</div>
+    <div id="chart-blockers"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rendimento misurato per operazione</h2>
+    <div class="cap" id="ret-cap"></div>
+    <div class="legend">
+      <span><i style="background:var(--series-1)"></i>in guadagno</span>
+      <span><i style="background:var(--neg)"></i>in perdita</span>
+    </div>
+    <div id="chart-returns"></div>
+  </div>
+
+  <details class="tablecard" open>
+    <summary>Tutti i listing <span class="sub" id="tcount"></span></summary>
+    <div class="scroll"><table id="tbl">
+      <thead><tr>
+        <th data-k="symbol">Simbolo</th>
+        <th data-k="exchange">Exchange</th>
+        <th data-k="category">Categoria</th>
+        <th data-k="opens_at">Apertura (UTC)</th>
+        <th data-k="preavviso_min" class="num">Preavviso</th>
+        <th data-k="liq" class="num">Liquidità</th>
+        <th data-k="ret_5m" class="num">Resa 5m</th>
+        <th data-k="pass">Esito</th>
+        <th>Motivo</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </details>
+
+  <footer id="foot"></footer>
+</div>
+<div id="tip"></div>
+
+<script>
+const DATA = [{"symbol":"ALIGN","name":"Aligned","exchange":"MEXC","category":null,"chain":"evm","contract":"0x50614CC8e44F7814549c223aA31db9296e58057c","zone":"NEW","deposits_open":1,"opens_at":1787252400000,"first_seen_at":1787199310217,"preavviso_min":885,"liq":4987.3,"pool_age_h":8.570277777777777,"dex_name":"uniswap","pass":null,"blockers":[],"fonte_esito":null,"ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"QOR","name":"QoreChain","exchange":"MEXC","category":null,"chain":null,"contract":null,"zone":"NEW","deposits_open":1,"opens_at":1787230800000,"first_seen_at":1787137259046,"preavviso_min":1559,"liq":null,"pool_age_h":null,"dex_name":null,"pass":null,"blockers":[],"fonte_esito":null,"ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"MRNAON","name":"Moderna","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xA2C1c0b4683a871187d4565Eb63ABF9AEF5947Ee","zone":"NEW","deposits_open":1,"opens_at":1787216400000,"first_seen_at":1787211029064,"preavviso_min":90,"liq":183.12,"pool_age_h":4927.086944444444,"dex_name":"uniswap","pass":null,"blockers":[],"fonte_esito":null,"ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"SWARM","name":"SwarmBase","exchange":"MEXC","category":null,"chain":"evm","contract":"0x57AAb42804434c4Cb118ee7FE5865859483051f8","zone":"NEW","deposits_open":1,"opens_at":1787133600000,"first_seen_at":1786996000999,"preavviso_min":2293,"liq":null,"pool_age_h":null,"dex_name":null,"pass":null,"blockers":[],"fonte_esito":null,"ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"OV","name":"Optiview","exchange":"MEXC","category":null,"chain":"evm","contract":"0x64B5eA8FCC261B27f18cc08CeF83e02e81A329E0","zone":"NEW","deposits_open":1,"opens_at":1786953600000,"first_seen_at":1786996001429,"preavviso_min":-707,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"BASECAT","name":"Basecat","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xB2000000000000000000004c27f6523082f41D01","zone":"NEW","deposits_open":1,"opens_at":1786930200000,"first_seen_at":1786996001450,"preavviso_min":-1097,"liq":480595.13,"pool_age_h":31.43638888888889,"dex_name":"uniswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":39.164792316207595,"ret_60m":42.897976014704994,"fonte_ret":"backtest"},{"symbol":"牛来","name":"Bull Coming","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xBEEA1D618e533a387D941F58a7d4c9b7bD377777","zone":"NEW","deposits_open":1,"opens_at":1786784400000,"first_seen_at":1786996001471,"preavviso_min":-3527,"liq":898865.09,"pool_age_h":16.69,"dex_name":"pancakeswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":2.7027767972374273,"ret_60m":-12.271003268737601,"fonte_ret":"backtest"},{"symbol":"KII","name":"KiiChain","exchange":"MEXC","category":null,"chain":"evm","contract":"0xEEC6574eAbBa52bac3f0277F2cD5Ac7e67197886","zone":"NEW","deposits_open":1,"opens_at":1786712400000,"first_seen_at":1786996001492,"preavviso_min":-4727,"liq":1404699.1246,"pool_age_h":30.540277777777778,"dex_name":"pancakeswap-infinity-clmm","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"KII","name":"KiiChain","exchange":"Bybit","category":null,"chain":null,"contract":null,"zone":null,"deposits_open":0,"opens_at":1786712400000,"first_seen_at":1786996002181,"preavviso_min":-4727,"liq":null,"pool_age_h":null,"dex_name":null,"pass":null,"blockers":[],"fonte_esito":null,"ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"UTILITY","name":"utility token","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xEde00776439f9C49C592e43EeE34777a51847777","zone":"NEW","deposits_open":1,"opens_at":1786617900000,"first_seen_at":1786996001512,"preavviso_min":-6302,"liq":114672.43,"pool_age_h":21.828333333333333,"dex_name":"pancakeswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":2.0440972376051247,"ret_60m":-1.2021188570904728,"fonte_ret":"backtest"},{"symbol":"HMM","name":"Thinking Cat","exchange":"MEXC","category":"meme","chain":"evm","contract":"0x7FE995a80075dF3Dc8Ae11A9b82c7FE4202CD87f","zone":"NEW","deposits_open":1,"opens_at":1786503600000,"first_seen_at":1786996001535,"preavviso_min":-8207,"liq":426176.55,"pool_age_h":571.0991666666666,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"UPROBINHOOD","name":"up","exchange":"MEXC","category":null,"chain":"evm","contract":"0x57C0E45cB534413D1C20A4240955d6bB250BB4F1","zone":"ASSESS","deposits_open":1,"opens_at":1786415700000,"first_seen_at":1786996001556,"preavviso_min":-9672,"liq":66608.34,"pool_age_h":744.7588888888889,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"DOS","name":"DAPPOS","exchange":"MEXC","category":null,"chain":"evm","contract":"0xB0f09ea9ae0515C3551080D4a745C8115aA30e37","zone":"NEW","deposits_open":1,"opens_at":1786352820000,"first_seen_at":1786996001580,"preavviso_min":-10720,"liq":18981.37,"pool_age_h":0.0625,"dex_name":"pancakeswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"TOAD","name":"The Toad Pepe","exchange":"MEXC","category":"meme","chain":"solana","contract":"A13oRB9FFaiUjfi6LdCg6p9ka1u8SfGkUFs4SKvPpump","zone":"NEW","deposits_open":1,"opens_at":1786241400000,"first_seen_at":1786996001603,"preavviso_min":-12577,"liq":246847.98,"pool_age_h":7.812222222222222,"dex_name":"meteora","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":-8.710519273414663,"ret_60m":0.9473099218412218,"fonte_ret":"backtest"},{"symbol":"UMX","name":"AurumX","exchange":"MEXC","category":null,"chain":"evm","contract":"0x138B261e7b6e5c69e26EcA7d385Eb5A127bF930c","zone":"NEW","deposits_open":1,"opens_at":1786100400000,"first_seen_at":1786996001626,"preavviso_min":-14927,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"ZAY","name":"ZKcandy","exchange":"MEXC","category":null,"chain":"evm","contract":"0x5f013A8327836DE2fCffCfB3B23bc32B0490b27d","zone":"NEW","deposits_open":1,"opens_at":1786096800000,"first_seen_at":1786996001647,"preavviso_min":-14987,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"JMDT","name":"JMDT","exchange":"MEXC","category":null,"chain":null,"contract":null,"zone":"NEW","deposits_open":1,"opens_at":1786028400000,"first_seen_at":1786996001667,"preavviso_min":-16127,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["contratto non risolto"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"AEHRON","name":"Aehr Test Systems","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xeB48e68F01c0C76735dc6F1dcC0F151A973BD9d2","zone":"NEW","deposits_open":1,"opens_at":1786023000000,"first_seen_at":1786996001681,"preavviso_min":-16217,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"APLDON","name":"AppliedDigital(Ondo)","exchange":"MEXC","category":"equity","chain":"evm","contract":"0x318Dcb4f07C3e6ccEcc12A252100Fb3Bf76Eeb02","zone":"NEW","deposits_open":1,"opens_at":1786023000000,"first_seen_at":1786996001694,"preavviso_min":-16217,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"AXTION","name":"AXT(Ondo)","exchange":"MEXC","category":"equity","chain":"evm","contract":"0x6a3E77d984e22bed6A036D3DA79D7857936a593f","zone":"NEW","deposits_open":1,"opens_at":1786023000000,"first_seen_at":1786996001706,"preavviso_min":-16217,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"SAPON","name":"SAP(Ondo)","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xCAfD1c0EE8B392cb446e3E745A4ADEfF7A861995","zone":"NEW","deposits_open":1,"opens_at":1786023000000,"first_seen_at":1786996001723,"preavviso_min":-16217,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"USARON","name":"USA Rare Earth(Ondo)","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xE2c149FA719d43912BfE584c71c9a6a018a5e916","zone":"NEW","deposits_open":1,"opens_at":1786023000000,"first_seen_at":1786996001740,"preavviso_min":-16217,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"STONK","name":"STONK","exchange":"MEXC","category":"meme","chain":"solana","contract":"6GmAFSYs4gk3FDao5FzzySQpPZaWsa4rUJHacpMpUNgx","zone":"NEW","deposits_open":1,"opens_at":1785900300000,"first_seen_at":1786996001758,"preavviso_min":-18262,"liq":343493.84,"pool_age_h":296.29527777777776,"dex_name":"raydium","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":-28.491214015954448,"ret_60m":-29.28308983389858,"fonte_ret":"backtest"},{"symbol":"QUID","name":"Squid","exchange":"MEXC","category":null,"chain":"evm","contract":"0x1a44233FAe8D50F1AeB3a5d58dd426ff4814Cb53","zone":"NEW","deposits_open":1,"opens_at":1785848400000,"first_seen_at":1786996001772,"preavviso_min":-19127,"liq":874007.9,"pool_age_h":21.349722222222223,"dex_name":"pancakeswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":-33.47001923851206,"ret_60m":-13.298880272666269,"fonte_ret":"backtest"},{"symbol":"UPID","name":"Stupid Faces","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xf540d944086A55D76cf13bDB1b041d9e22794b85","zone":"NEW","deposits_open":1,"opens_at":1785830400000,"first_seen_at":1786996001784,"preavviso_min":-19427,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"2U2","name":"2u2","exchange":"MEXC","category":null,"chain":"evm","contract":"0xBa454dF19789372EEb1AB3b113A8F639594E31B9","zone":"NEW","deposits_open":1,"opens_at":1785740400000,"first_seen_at":1786996001798,"preavviso_min":-20927,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["5 pool, tutte create dopo il listing"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"MY","name":"Myros","exchange":"MEXC","category":null,"chain":"evm","contract":"0xB78E74Cd45d64D1aFF80E776D63f47eb9AF8a14b","zone":"NEW","deposits_open":1,"opens_at":1785571200000,"first_seen_at":1786996001811,"preavviso_min":-23747,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"FRONG","name":"frong","exchange":"MEXC","category":"meme","chain":"evm","contract":"0x6245e67affA44a23077f0Ea7f981a8DC743a0c47","zone":"NEW","deposits_open":1,"opens_at":1785479400000,"first_seen_at":1786996001821,"preavviso_min":-25277,"liq":440687.9,"pool_age_h":10.216944444444444,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"GRVT","name":"Grvt","exchange":"MEXC","category":null,"chain":"evm","contract":"0xAD29F2723fcdBcF665F210F25E06f97477e417cF","zone":"NEW","deposits_open":1,"opens_at":1785412980000,"first_seen_at":1786996001832,"preavviso_min":-26384,"liq":758.8575,"pool_age_h":22.676944444444445,"dex_name":"uniswap-v4-ethereum","pass":false,"blockers":["liquidità sotto la soglia"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"NATG","name":"NatGold Digital","exchange":"MEXC","category":"rwa","chain":"evm","contract":"0x59c323346F4f62aE18289F346501389392cf5939","zone":"NEW","deposits_open":1,"opens_at":1785409200000,"first_seen_at":1786996001843,"preavviso_min":-26447,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"MARSCOIN","name":"MarsCoin","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xFe189E97832DA1573e4e4Ff034F4fFC3a15c7777","zone":"ASSESS","deposits_open":1,"opens_at":1785403800000,"first_seen_at":1786996001854,"preavviso_min":-26537,"liq":883727.33,"pool_age_h":68.11361111111111,"dex_name":"pancakeswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"XPLK","name":"xPayLink","exchange":"MEXC","category":null,"chain":"evm","contract":"0xCD6acC25aa232A5443F53049BB1EcB9fdAC96122","zone":"NEW","deposits_open":1,"opens_at":1785319200000,"first_seen_at":1786996001870,"preavviso_min":-27947,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"PIPEDOG","name":"pipedog","exchange":"MEXC","category":"meme","chain":"evm","contract":"0x5Cb6F181081301b44905F3ae15419112ecaBd8A6","zone":"NEW","deposits_open":1,"opens_at":1785288300000,"first_seen_at":1786996001882,"preavviso_min":-28462,"liq":8514803.21,"pool_age_h":4.885555555555555,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"SPCXX","name":"SpaceX xStocks","exchange":"MEXC","category":"equity","chain":"solana","contract":"Xs3oZwbHvqis4NYcf4YKWmEia2eC84wSiVrcYcTqpH8","zone":"NEW","deposits_open":1,"opens_at":1785159000000,"first_seen_at":1786996001898,"preavviso_min":-30617,"liq":939355.06,"pool_age_h":1077.4047222222223,"dex_name":"raydium","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"EPIK","name":"TEH EPIK DUCK","exchange":"MEXC","category":"meme","chain":"solana","contract":"3BgwJ8b7b9hHX4sgfZ2KJhv9496CoVfsMK2YePevsBRw","zone":"NEW","deposits_open":1,"opens_at":1785151500000,"first_seen_at":1786996001918,"preavviso_min":-30742,"liq":461707.5,"pool_age_h":20272.685,"dex_name":"raydium","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":940.6940479758124,"ret_60m":578.8354706472953,"fonte_ret":"backtest"},{"symbol":"AEON","name":"AEON","exchange":"MEXC","category":null,"chain":"evm","contract":"0x277aDD739c6E0477616948357AF9E79Fe1Ec9B80","zone":"ASSESS","deposits_open":1,"opens_at":1785146580000,"first_seen_at":1786996001934,"preavviso_min":-30824,"liq":1652920.9053,"pool_age_h":26.891111111111112,"dex_name":"pancakeswap-infinity-clmm","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"CATE","name":"Catecoin","exchange":"MEXC","category":"meme","chain":"solana","contract":"Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump","zone":"NEW","deposits_open":1,"opens_at":1785117900000,"first_seen_at":1786996001952,"preavviso_min":-31302,"liq":765450.1,"pool_age_h":9.538055555555555,"dex_name":"pumpswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":52.67050572935008,"ret_60m":126.44916223917497,"fonte_ret":"backtest"},{"symbol":"RAZOR","name":"TradingRazor","exchange":"MEXC","category":null,"chain":"evm","contract":"0xB50A09D0742B57fe0733225F84bFC48E0F13be5A","zone":"NEW","deposits_open":1,"opens_at":1784966400000,"first_seen_at":1786996001970,"preavviso_min":-33827,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"FEFER","name":"Fefer","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xeaf7aC0FdF150CDD89340fB762D83848De6A7b83","zone":"NEW","deposits_open":1,"opens_at":1784856300000,"first_seen_at":1786996001989,"preavviso_min":-35662,"liq":180144.6,"pool_age_h":33.885,"dex_name":"dyorswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"AGON","name":"FirstMajesticSilver","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xaa26e62e51bc5da24ED2B6Fc6491e137d68824B9","zone":"NEW","deposits_open":1,"opens_at":1784813400000,"first_seen_at":1786996002009,"preavviso_min":-36377,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"GFSON","name":"GlobalFoundries","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xB326821B68313082F00A1A4d6Fa3f924D3E826Dc","zone":"NEW","deposits_open":1,"opens_at":1784813400000,"first_seen_at":1786996002027,"preavviso_min":-36377,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"MXLON","name":"Maxlinear(Ondo)","exchange":"MEXC","category":"equity","chain":"evm","contract":"0xD1C3bF5DdE6ee17Ae2a472a8C4f0258e0B350cb4","zone":"NEW","deposits_open":1,"opens_at":1784813400000,"first_seen_at":1786996002043,"preavviso_min":-36377,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"NETON","name":"Cloudfare(Ondo)","exchange":"MEXC","category":"equity","chain":"evm","contract":"0x4f5A3B3E184b1424816D9107448314ba0aAd63e1","zone":"NEW","deposits_open":1,"opens_at":1784813400000,"first_seen_at":1786996002058,"preavviso_min":-36377,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["equity tokenizzata (fuori tesi)","nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"GMEROBINHOOD","name":"GameStop (GME)","exchange":"MEXC","category":"meme","chain":"evm","contract":"0xc2362AfF2A2a4CC1f48cF3Dab2C4e2605eb94BA3","zone":"NEW","deposits_open":1,"opens_at":1784787900000,"first_seen_at":1786996002074,"preavviso_min":-36802,"liq":129509.87,"pool_age_h":5.7186111111111115,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"AIINU","name":"Artificial Inu","exchange":"MEXC","category":"meme","chain":"evm","contract":"0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18","zone":"NEW","deposits_open":1,"opens_at":1784772600000,"first_seen_at":1786996002093,"preavviso_min":-37057,"liq":717330.49,"pool_age_h":200.35805555555555,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"KET","name":"KET","exchange":"MEXC","category":null,"chain":"solana","contract":"9Pfync3ejPC9eHqVzq3nYQJAhyhjqpnB9UsaSfLxpump","zone":"NEW","deposits_open":1,"opens_at":1784706600000,"first_seen_at":1786996002111,"preavviso_min":-38157,"liq":191763.08,"pool_age_h":367.67861111111114,"dex_name":"pumpswap","pass":true,"blockers":[],"fonte_esito":"backtest","ret_5m":18.48034160270373,"ret_60m":10.80263414829612,"fonte_ret":"backtest"},{"symbol":"WOOD","name":"Sherwood Protocol","exchange":"MEXC","category":null,"chain":"evm","contract":"0xF8BC08092C06dB6148114DCf82AF881F1085f92b","zone":"ASSESS","deposits_open":1,"opens_at":1784706000000,"first_seen_at":1786996002127,"preavviso_min":-38167,"liq":320044.12,"pool_age_h":207.4575,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"AET","name":"Aether Network","exchange":"MEXC","category":null,"chain":"evm","contract":"0x66542b0938e9C8E9bada44F5d19B717F46a18C2B","zone":"NEW","deposits_open":1,"opens_at":1784620800000,"first_seen_at":1786996002142,"preavviso_min":-39587,"liq":null,"pool_age_h":null,"dex_name":null,"pass":false,"blockers":["nessuna pool"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null},{"symbol":"STONKBROKER","name":"StonkBroker","exchange":"MEXC","category":null,"chain":"evm","contract":"0xe934e36A439C94017B64a3FecE66AF12099aBF50","zone":"NEW","deposits_open":1,"opens_at":1784515200000,"first_seen_at":1786996002159,"preavviso_min":-41347,"liq":3513679.2,"pool_age_h":46.8325,"dex_name":"uniswap","pass":false,"blockers":["equity tokenizzata (fuori tesi)"],"fonte_esito":"backtest","ret_5m":null,"ret_60m":null,"fonte_ret":null}];
+const META = {"generato_il":1787237531747,"db_listings":49,"simulazioni_aperte":0,"simulazioni_chiuse":0,"ultimo_listing_visto":1787211029064,"costi_pct":4};
+// Logica della pagina report. Caricata dentro report.html da report.mjs.
+// Vanilla, nessuna dipendenza: il file deve restare apribile col doppio clic
+// anche fra un anno, senza rete e senza installare niente.
+
+const $ = (s) => document.querySelector(s);
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+const fmtUsd = (n) =>
+  n == null ? '—' : '$' + Math.round(n).toLocaleString('it-IT');
+const fmtPct = (n) => (n == null ? '—' : (n > 0 ? '+' : '') + n.toFixed(1) + '%');
+const fmtDate = (ms) =>
+  ms ? new Date(ms).toISOString().replace('T', ' ').slice(0, 16) : '—';
+const fmtMin = (m) => {
+  if (m == null) return '—';
+  if (m < 0) return '—';
+  if (m < 90) return m + ' min';
+  if (m < 60 * 48) return (m / 60).toFixed(1) + ' h';
+  return Math.round(m / 1440) + ' g';
+};
+const daysAgo = (ms) => Math.round((Date.now() - ms) / 864e5);
+
+const el = (tag, attrs = {}, txt) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (txt != null) n.textContent = txt;
+  return n;
+};
+
+/**
+ * Rettangolo con estremo-dati arrotondato e base squadrata.
+ * `side` indica da che parte cresce la barra: è lì che va il raggio.
+ */
+function barPath(x, y, w, h, r, side) {
+  r = Math.max(0, Math.min(r, Math.abs(w)));
+  if (w <= 0.5) return `M${x},${y}h${Math.max(w, 0.5)}v${h}h${-Math.max(w, 0.5)}Z`;
+  return side === 'right'
+    ? `M${x},${y}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${h - 2 * r}a${r},${r} 0 0 1 ${-r},${r}h${-(w - r)}Z`
+    : `M${x + w},${y}h${-(w - r)}a${r},${r} 0 0 0 ${-r},${r}v${h - 2 * r}a${r},${r} 0 0 0 ${r},${r}h${w - r}Z`;
+}
+
+// ------------------------------------------------------------------ tooltip
+const tip = $('#tip');
+function showTip(e, html) {
+  tip.innerHTML = html;
+  tip.style.opacity = '1';
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14;
+  let y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+}
+const hideTip = () => (tip.style.opacity = '0');
+
+// ------------------------------------------------------------------- filtri
+const F = { q: '', cat: '', ex: '', pass: '', time: '' };
+
+function applyFilters() {
+  const q = F.q.trim().toLowerCase();
+  const now = Date.now();
+  return DATA.filter((r) => {
+    if (q && !((r.symbol ?? '') + ' ' + (r.name ?? '')).toLowerCase().includes(q)) return false;
+    if (F.cat && (r.category ?? '(nessuna)') !== F.cat) return false;
+    if (F.ex && r.exchange !== F.ex) return false;
+    if (F.pass === '1' && r.pass !== true) return false;
+    if (F.pass === '0' && r.pass !== false) return false;
+    if (F.pass === 'n' && r.pass !== null) return false;
+    if (F.time === 'f' && !(r.opens_at > now)) return false;
+    if (F.time === '7' && !(r.opens_at > now - 7 * 864e5)) return false;
+    if (F.time === '30' && !(r.opens_at > now - 30 * 864e5)) return false;
+    return true;
+  });
+}
+
+// --------------------------------------------------------------------- KPI
+function renderKpis(rows) {
+  const misurate = rows.filter((r) => r.ret_5m != null);
+  const rets = misurate.map((r) => r.ret_5m).sort((a, b) => a - b);
+  const mediana = rets.length ? rets[Math.floor(rets.length / 2)] : null;
+  const mediaNoTop =
+    rets.length > 1 ? rets.slice(0, -1).reduce((a, b) => a + b, 0) / (rets.length - 1) : null;
+  const passa = rows.filter((r) => r.pass === true).length;
+  const valutati = rows.filter((r) => r.pass !== null).length;
+
+  const tile = (lab, val, hint, hero) =>
+    `<div class="tile"><div class="lab">${lab}</div>` +
+    `<div class="val${hero ? ' hero' : ''}">${val}</div>` +
+    (hint ? `<div class="hint">${hint}</div>` : '') +
+    `</div>`;
+
+  $('#kpis').innerHTML =
+    tile('Operazioni misurate', rets.length, META.simulazioni_chiuse
+      ? `${META.simulazioni_chiuse} dalla simulazione`
+      : 'tutte ereditate dal backtest', true) +
+    tile('Mediana netta', mediana == null ? '—' : fmtPct(mediana - META.costi_pct),
+      `lorda ${fmtPct(mediana)} · costi −${META.costi_pct}%`) +
+    tile('Media senza il caso migliore', mediaNoTop == null ? '—' : fmtPct(mediaNoTop),
+      'se crolla, decide un solo colpo') +
+    tile('Passa i cancelli', `${passa}<span style="font-size:16px;color:var(--text-muted)">/${valutati}</span>`,
+      `${rows.length} listing nel filtro`) +
+    tile('Ultimo listing visto', META.ultimo_listing_visto ? daysAgo(META.ultimo_listing_visto) + ' g fa' : '—',
+      fmtDate(META.ultimo_listing_visto));
+}
+
+// ------------------------------------------- grafico: motivi di scarto
+function renderBlockers(rows) {
+  const host = $('#chart-blockers');
+  host.innerHTML = '';
+
+  const counts = new Map();
+  for (const r of rows) {
+    if (r.pass !== false || !r.blockers.length) continue;
+    // Normalizza le cifre variabili ("liquidità $6.893") in una classe unica,
+    // altrimenti ogni listing genererebbe il proprio motivo e il grafico
+    // diventerebbe un elenco di barre da uno.
+    const k = r.blockers[0]
+      .replace(/\$[\d.,]+/g, '$…')
+      .replace(/\d+ min/g, 'N min')
+      .replace(/\b\d+ pool\b/g, 'N pool')
+      .replace(/\(\d+×\)/g, '');
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  const data = [...counts].sort((a, b) => b[1] - a[1]);
+  if (!data.length) {
+    host.innerHTML = '<div class="empty">Nessun listing scartato nella selezione corrente.</div>';
+    return;
+  }
+
+  const BAR = 20, GAP = 14, LEFT = 300, RIGHT = 56, TOP = 8;
+  const h = TOP + data.length * (BAR + GAP);
+  const w = Math.min(host.clientWidth || 860, 1100);
+  const plotW = w - LEFT - RIGHT;
+  const max = Math.max(...data.map((d) => d[1]));
+
+  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, width: '100%', height: h, role: 'img' });
+  svg.appendChild(el('title', {}, 'Motivi di scarto dei listing'));
+
+  // Griglia: hairline continue, mai tratteggiate.
+  const ticks = max <= 4 ? [...Array(max + 1).keys()] : [0, Math.round(max / 2), max];
+  for (const t of ticks) {
+    const x = LEFT + (t / max) * plotW;
+    svg.appendChild(el('line', { x1: x, y1: TOP, x2: x, y2: h - GAP + 4, class: t === 0 ? 'axis-line' : 'grid-line' }));
+    svg.appendChild(el('text', { x, y: h - 2, 'text-anchor': 'middle' }, t));
+  }
+
+  data.forEach(([label, n], i) => {
+    const y = TOP + i * (BAR + GAP);
+    const bw = (n / max) * plotW;
+
+    const hit = el('rect', { x: 0, y: y - GAP / 2, width: w, height: BAR + GAP, fill: 'transparent' });
+    hit.addEventListener('mousemove', (e) =>
+      showTip(e, `<b>${label}</b><span class="t-sec">${n} listing scartati per questo motivo</span>`));
+    hit.addEventListener('mouseleave', hideTip);
+    svg.appendChild(hit);
+
+    svg.appendChild(el('path', {
+      d: barPath(LEFT, y, bw, BAR, 4, 'right'),
+      fill: 'var(--series-1)', class: 'bar',
+    }));
+
+    const short = label.length > 44 ? label.slice(0, 43) + '…' : label;
+    svg.appendChild(el('text', { x: LEFT - 10, y: y + BAR / 2 + 4, 'text-anchor': 'end' }, short));
+    svg.appendChild(el('text', { x: LEFT + bw + 8, y: y + BAR / 2 + 4, class: 'val-label' }, n));
+  });
+
+  host.appendChild(svg);
+}
+
+// ------------------------------------------- grafico: rendimenti (divergente)
+function renderReturns(rows) {
+  const host = $('#chart-returns');
+  host.innerHTML = '';
+
+  const data = rows.filter((r) => r.ret_5m != null).sort((a, b) => b.ret_5m - a.ret_5m);
+  const daSim = data.filter((r) => r.fonte_ret === 'simulazione').length;
+  $('#ret-cap').textContent = data.length
+    ? `Dal prezzo DEX all'apertura + 5 minuti, al lordo dei costi. ${data.length} operazioni: ` +
+      `${daSim} dalla simulazione in corso, ${data.length - daSim} ereditate dal backtest.`
+    : 'Nessuna operazione misurata nella selezione corrente.';
+
+  if (!data.length) {
+    host.innerHTML = '<div class="empty">Nessuna operazione misurata. Il campione si forma man mano che i listing segnalati aprono.</div>';
+    return;
+  }
+
+  // Asse troncato: un singolo caso a +941% schiaccerebbe tutti gli altri a
+  // zero. Le barre oltre soglia sono marcate con una tacca di rottura e
+  // portano il valore vero come etichetta — il numero non viene mai nascosto.
+  const CLIP = 60;
+  const BAR = 18, GAP = 12, LEFT = 104, RIGHT = 72, TOP = 10;
+  const h = TOP + data.length * (BAR + GAP) + 22;
+  const w = Math.min(host.clientWidth || 860, 1100);
+  const plotW = w - LEFT - RIGHT;
+  const mid = LEFT + plotW / 2;
+  const scale = (v) => (Math.max(-CLIP, Math.min(CLIP, v)) / CLIP) * (plotW / 2);
+
+  const svg = el('svg', { viewBox: `0 0 ${w} ${h}`, width: '100%', height: h, role: 'img' });
+  svg.appendChild(el('title', {}, 'Rendimento per operazione'));
+
+  for (const t of [-CLIP, -CLIP / 2, 0, CLIP / 2, CLIP]) {
+    const x = mid + scale(t);
+    svg.appendChild(el('line', {
+      x1: x, y1: TOP, x2: x, y2: h - 20, class: t === 0 ? 'axis-line' : 'grid-line',
+    }));
+    svg.appendChild(el('text', { x, y: h - 5, 'text-anchor': 'middle' },
+      (t > 0 ? '+' : '') + t + '%'));
+  }
+
+  data.forEach((r, i) => {
+    const y = TOP + i * (BAR + GAP);
+    const v = r.ret_5m;
+    const pos = v >= 0;
+    const len = Math.abs(scale(v));
+    const x = pos ? mid : mid - len;
+    const clipped = Math.abs(v) > CLIP;
+
+    const hit = el('rect', { x: 0, y: y - GAP / 2, width: w, height: BAR + GAP, fill: 'transparent' });
+    hit.addEventListener('mousemove', (e) => showTip(e,
+      `<b>${r.symbol}</b><span class="t-sec">` +
+      `apertura ${fmtDate(r.opens_at)}<br>` +
+      `a 5 min ${fmtPct(v)} · a 60 min ${fmtPct(r.ret_60m)}<br>` +
+      `netto stimato ${fmtPct(v - META.costi_pct)}<br>` +
+      `liquidità pool ${fmtUsd(r.liq)}<br>` +
+      `fonte: ${r.fonte_ret}</span>`));
+    hit.addEventListener('mouseleave', hideTip);
+    svg.appendChild(hit);
+
+    svg.appendChild(el('path', {
+      d: barPath(x, y, len, BAR, 4, pos ? 'right' : 'left'),
+      fill: pos ? 'var(--series-1)' : 'var(--neg)', class: 'bar',
+    }));
+
+    if (clipped) {
+      // Tacca di rottura: due linee inclinate in colore superficie sull'estremo.
+      const bx = pos ? x + len - 9 : x + 3;
+      for (const o of [0, 5]) {
+        svg.appendChild(el('line', {
+          x1: bx + o, y1: y - 1, x2: bx + o + 5, y2: y + BAR + 1,
+          stroke: 'var(--surface-1)', 'stroke-width': 2.5,
+        }));
+      }
+    }
+
+    svg.appendChild(el('text', {
+      x: pos ? x + len + 8 : x - 8, y: y + BAR / 2 + 4,
+      'text-anchor': pos ? 'start' : 'end', class: 'val-label',
+    }, fmtPct(v)));
+
+    svg.appendChild(el('text', { x: LEFT - 14, y: y + BAR / 2 + 4, 'text-anchor': 'end' }, r.symbol));
+  });
+
+  host.appendChild(svg);
+}
+
+// -------------------------------------------------------------------- tabella
+let sortKey = 'opens_at';
+let sortDir = -1;
+
+function renderTable(rows) {
+  const sorted = [...rows].sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sortDir;
+  });
+
+  const esito = (r) =>
+    r.pass === true ? '<span class="pill ok">✔ passa</span>'
+    : r.pass === false ? '<span class="pill no">✕ scartato</span>'
+    : '<span class="pill na">non valutato</span>';
+
+  $('#tbl tbody').innerHTML = sorted.map((r) => `<tr>
+    <td><b>${r.symbol}</b>${r.name ? `<br><span class="sub" style="font-size:11px">${r.name}</span>` : ''}</td>
+    <td>${r.exchange}</td>
+    <td>${r.category ?? '—'}</td>
+    <td class="mono">${fmtDate(r.opens_at)}</td>
+    <td class="num">${fmtMin(r.preavviso_min)}</td>
+    <td class="num">${fmtUsd(r.liq)}</td>
+    <td class="num" style="color:${r.ret_5m == null ? 'var(--text-muted)' : r.ret_5m > 0 ? 'var(--success-text)' : 'var(--critical)'}">${fmtPct(r.ret_5m)}</td>
+    <td>${esito(r)}</td>
+    <td class="why">${r.blockers.slice(0, 2).join(' · ') || '—'}${r.fonte_esito === 'backtest' ? ' <span class="pill na">retroattivo</span>' : ''}</td>
+  </tr>`).join('');
+
+  $('#tcount').textContent = `(${sorted.length})`;
+}
+
+// --------------------------------------------------------------------- render
+function render() {
+  const rows = applyFilters();
+  $('#count').textContent = `${rows.length} di ${DATA.length} listing`;
+  renderKpis(rows);
+  renderBlockers(rows);
+  renderReturns(rows);
+  renderTable(rows);
+}
+
+// ----------------------------------------------------------------- avvio
+function initFilters() {
+  const opts = (sel, vals, lab) => {
+    sel.innerHTML = `<option value="">${lab}</option>` +
+      vals.map((v) => `<option value="${v}">${v}</option>`).join('');
+  };
+  opts($('#f-cat'), [...new Set(DATA.map((r) => r.category ?? '(nessuna)'))].sort(), 'tutte');
+  opts($('#f-ex'), [...new Set(DATA.map((r) => r.exchange))].sort(), 'tutti');
+
+  const bind = (id, key) => $(id).addEventListener('input', (e) => { F[key] = e.target.value; render(); });
+  bind('#f-q', 'q'); bind('#f-cat', 'cat'); bind('#f-ex', 'ex');
+  bind('#f-pass', 'pass'); bind('#f-time', 'time');
+
+  document.querySelectorAll('#tbl th[data-k]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.k;
+      sortDir = sortKey === k ? -sortDir : (k === 'symbol' || k === 'exchange' || k === 'category' ? 1 : -1);
+      sortKey = k;
+      renderTable(applyFilters());
+    });
+  });
+
+  $('#theme').addEventListener('click', () => {
+    const cur = document.documentElement.dataset.theme;
+    const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+    render();
+  });
+
+  addEventListener('resize', () => { renderBlockers(applyFilters()); renderReturns(applyFilters()); });
+}
+
+$('#meta-line').textContent =
+  `generato il ${fmtDate(META.generato_il)} UTC · ${META.db_listings} listing in archivio` +
+  (META.simulazioni_aperte ? ` · ${META.simulazioni_aperte} simulazioni aperte` : '');
+
+$('#disclaimer').innerHTML =
+  `<b>Come leggere questa pagina.</b> I cancelli eliminano le operazioni <b>impossibili</b> ` +
+  `(niente pool, liquidità insufficiente, depositi chiusi, token non rivendibile), non selezionano ` +
+  `quelle profittevoli. Le operazioni misurate qui sotto sono in larga parte ereditate dal backtest ` +
+  `e il loro totale dipende quasi interamente da un singolo caso: guarda sempre <b>“media senza il ` +
+  `caso migliore”</b> prima di trarre conclusioni. Gli esiti marcati <span class="pill na">retroattivo</span> ` +
+  `sono ricostruiti dai dati archiviati e coprono solo tre dei sette cancelli.`;
+
+$('#foot').innerHTML =
+  `Pagina statica, generata da <span class="mono">report.mjs</span>. Nessuna connessione in uscita: ` +
+  `i dati sono incorporati nel file al momento della generazione.<br>` +
+  `Per aggiornarla: <span class="mono">npm run web</span> — riscarica il database dal server e rigenera.`;
+
+initFilters();
+render();
+
+</script>
+</body>
+</html>
